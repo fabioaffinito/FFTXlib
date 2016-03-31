@@ -1,3 +1,13 @@
+!
+! Copyright (C) Quantum ESPRESSO group
+!
+! This file is distributed under the terms of the
+! GNU General Public License. See the file `License'
+! in the root directory of the present distribution,
+! or http://www.gnu.org/copyleft/gpl.txt .
+!
+! by F. Affinito and C. Cavazzoni, Cineca
+
 program test
   USE fft_types, ONLY: fft_dlay_descriptor, fft_dlay_deallocate
   USE stick_set, ONLY: pstickset
