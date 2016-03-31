@@ -1,16 +1,9 @@
-# make.sys.  Generated from make.sys.in by configure.
+# make.sys.  Update this file with the right locations.
 
 # compilation rules
 
 .SUFFIXES :
 .SUFFIXES : .o .c .f .f90
-
-# most fortran compilers can directly preprocess c-like directives: use
-# 	$(MPIF90) $(F90FLAGS) -c $<
-# if explicit preprocessing by the C preprocessor is needed, use:
-# 	$(CPP) $(CPPFLAGS) $< -o $*.F90 
-#	$(MPIF90) $(F90FLAGS) -c $*.F90 -o $*.o
-# remember the tabulator in the first column !!!
 
 .f90.o:
 	$(MPIF90) $(F90FLAGS) -c $<
@@ -23,18 +16,6 @@
 .c.o:
 	$(CC) $(CFLAGS)  -c $<
 
-
-
-# topdir for linking espresso libs with plugins
-TOPDIR = /pico/home/userinternal/faffinit/qe/espresso
-
-# DFLAGS  = precompilation options (possible arguments to -D and -U)
-#           used by the C compiler and preprocessor
-# FDFLAGS = as DFLAGS, for the f90 compiler
-# See include/defs.h.README for a list of options and their meaning
-# With the exception of IBM xlf, FDFLAGS = $(DFLAGS)
-# For IBM xlf, FDFLAGS is the same as DFLAGS with separating commas 
-
 # MANUAL_DFLAGS  = additional precompilation option(s), if desired
 #                  You may use this instead of tweaking DFLAGS and FDFLAGS
 #                  BEWARE: will not work for IBM xlf! Manually edit FDFLAGS
@@ -46,10 +27,6 @@ FDFLAGS        = $(DFLAGS) $(MANUAL_DFLAGS)
 # In most cases, IFLAGS = -I../include
 
 IFLAGS         = -I./
-
-# MOD_FLAGS = flag used by f90 compiler to locate modules
-# Each Makefile defines the list of needed modules in MODFLAGS
-
 MOD_FLAG      = -I
 
 # Compilers: fortran-90, fortran-77, C
@@ -100,22 +77,10 @@ LD_LIBS        =
 
 # External Libraries (if any) : blas, lapack, fft, MPI
 
-# If you have nothing better, use the local copy :
-# BLAS_LIBS = /your/path/to/espresso/BLAS/blas.a
-# BLAS_LIBS_SWITCH = internal
-
 BLAS_LIBS      = -L/cineca/prod/compilers/intel/cs-xe-2015/binary/mkl/lib/intel64 -lmkl_intel_lp64  -lmkl_intel_thread -lmkl_core
 BLAS_LIBS_SWITCH = external
-
-# If you have nothing better, use the local copy :
-# LAPACK_LIBS = /your/path/to/espresso/lapack-3.2/lapack.a
-# LAPACK_LIBS_SWITCH = internal
-# For IBM machines with essl (-D__ESSL): load essl BEFORE lapack !
-# remember that LAPACK_LIBS precedes BLAS_LIBS in loading order
-
 LAPACK_LIBS    = 
 LAPACK_LIBS_SWITCH = external
-
 ELPA_LIBS_SWITCH = disabled
 SCALAPACK_LIBS = -lmkl_scalapack_lp64 -lmkl_blacs_intelmpi_lp64
 
