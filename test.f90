@@ -17,7 +17,7 @@ program test
 #ifdef __MPI
   include 'mpif.h'
   include 'fft_param.f90'
-  INTEGER, ALLOCATABLE :: req_p(:),req_u(:)
+  INTEGER, ALLOCATABLE :: req_p(:)
 #endif
   TYPE(fft_dlay_descriptor) :: dfftp, dffts, dfft3d
   INTEGER :: nx = 128
@@ -235,11 +235,13 @@ program test
   CALL pstickset( gamma_only, bg, gcutm, gkcut, gcutms, &
         dfftp, dffts, ngw_ , ngm_ , ngs_ , mype, root, &
         npes, comm, ntgs, iope, stdout, dfft3d )
+  write(*,*)'pstickset done'
 
   ALLOCATE( psis( dffts%tg_nnr * dffts%nogrp, 2 ) )
-  ALLOCATE( req_p(nbnd) )
-  ALLOCATE( req_u(nbnd) )
+  ALLOCATE( req_p(2*nbnd) )
   ALLOCATE( aux( dffts%tg_nnr * dffts%nogrp ) )
+
+  req_p = MPI_REQUEST_NULL
 
   tempo = 0.0d0
   tempo_mio = 0.0d0
@@ -262,7 +264,6 @@ program test
   CALL bw_tg_cft3_scatter( psis(:,1), dffts, aux )
   CALL bw_tg_cft3_z( psis(:,1), dffts, aux )
   CALL unpack_group_sticks( psis(:,1), aux, dffts )
-
   !
   ! Execute FFT calls once more and Take time
   !
@@ -275,6 +276,7 @@ program test
   ipsi = MOD( ireq + 1, 2 ) + 1 
   !
   CALL pack_group_sticks_i( aux, psis(:, ipsi ), dffts, req_p( ireq ) )
+  ! write(*,*)'pack group sticks i done',ireq,req_p(ireq)
   !
   nreq = 0
   DO ib = 1, nbnd, 2*dffts%nogrp 
@@ -284,7 +286,6 @@ program test
   DO ib = 1, nbnd, 2*dffts%nogrp 
  
      ireq = ireq + 1
-
      aux = 0.0d0
      aux(1) = 1.0d0
 
@@ -292,12 +293,16 @@ program test
 
      IF( ireq <= nreq ) THEN
         ipsi = MOD( ireq + 1, 2 ) + 1 
+     !   write(*,*)'BEFORE pack group sticks i ',ireq,req_p(ireq),' done'
         CALL pack_group_sticks_i( aux, psis(:,ipsi), dffts, req_p(ireq) )
+     !   write(*,*)'AFTER pack group sticks i ',ireq,req_p(ireq),' done'
      END IF
 
      ipsi = MOD(ipsi-1,2)+1 
 
-     CALL MPI_WAIT( req_p( ireq - 1 ),MPI_STATUS_IGNORE)
+    ! write(*,*)'BEFORE wait pack group sticks i ',ireq-1,req_p(ireq-1),' done'
+     CALL MPI_WAIT( req_p( ireq - 1 ),MPI_STATUS_IGNORE, ierr)
+    ! write(*,*)'AFTER wait pack group sticks i ',ireq-1,req_p(ireq-1),' done'
 
      tempo(2) = MPI_WTIME()
 
