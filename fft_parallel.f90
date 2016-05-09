@@ -410,10 +410,10 @@ END SUBROUTINE bw_tg_cft3_xy
      !  in "yf" processors will have all the sticks of the OGRP
 
 #if defined(__MPI)
-
      CALL MPI_IALLTOALLV( f(1), dfft%tg_snd, dfft%tg_psdsp, MPI_DOUBLE_COMPLEX, yf(1), dfft%tg_rcv, &
       &                     dfft%tg_rdsp, MPI_DOUBLE_COMPLEX, dfft%ogrp_comm, req, ierr)
      IF( ierr /= 0 ) THEN
+     write(*,*)'IALLTOALLV req',req
         CALL fftx_error__( 'pack_group_sticks_i', ' alltoall error 1 ', abs(ierr) )
      ENDIF
 
@@ -487,6 +487,47 @@ END SUBROUTINE bw_tg_cft3_xy
      RETURN
   END SUBROUTINE pack_group_sticks
 
+#ifdef __DOUBLE_BUFFER
+  SUBROUTINE unpack_group_sticks_i( yf, f, dfft, req )
+
+     USE fft_types,  ONLY : fft_dlay_descriptor
+
+     IMPLICIT NONE
+#if defined(__MPI)
+  INCLUDE 'mpif.h'
+#endif
+
+     COMPLEX(DP), INTENT(out)    :: f( : )  ! array containing all bands, and gvecs distributed across processors
+     COMPLEX(DP), INTENT(in)    :: yf( : )  ! array containing bands collected into task groups
+     TYPE (fft_dlay_descriptor), INTENT(in) :: dfft
+     !
+     !  Bring pencils back to their original distribution
+     !
+     INTEGER                     :: ierr, req 
+     !
+     IF( dfft%tg_usdsp(dfft%nogrp) + dfft%tg_snd(dfft%nogrp) > size( f ) ) THEN
+        CALL fftx_error__( 'unpack_group_sticks', ' inconsistent size ', 3 )
+     ENDIF
+     IF( dfft%tg_rdsp(dfft%nogrp) + dfft%tg_rcv(dfft%nogrp) > size( yf ) ) THEN
+        CALL fftx_error__( 'unpack_group_sticks', ' inconsistent size ', 4 )
+     ENDIF
+
+     CALL start_clock( 'ALLTOALL' )
+
+#if defined(__MPI)
+     CALL MPI_IAlltoallv( yf(1), &
+          dfft%tg_rcv, dfft%tg_rdsp, MPI_DOUBLE_COMPLEX, f(1), &
+          dfft%tg_snd, dfft%tg_usdsp, MPI_DOUBLE_COMPLEX, dfft%ogrp_comm, req, IERR)
+     IF( ierr /= 0 ) THEN
+        CALL fftx_error__( 'unpack_group_sticks', ' alltoall error 2 ', abs(ierr) )
+     ENDIF
+#endif
+
+     CALL stop_clock( 'ALLTOALL' )
+
+     RETURN
+  END SUBROUTINE unpack_group_sticks_i
+#endif
   !
   SUBROUTINE unpack_group_sticks( yf, f, dfft )
 

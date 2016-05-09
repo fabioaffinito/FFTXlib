@@ -17,7 +17,7 @@ program test
 #ifdef __MPI
   include 'mpif.h'
   include 'fft_param.f90'
-  INTEGER, ALLOCATABLE :: req_p(:)
+  INTEGER, ALLOCATABLE :: req_p(:),req_u(:)
 #endif
   TYPE(fft_dlay_descriptor) :: dfftp, dffts, dfft3d
   INTEGER :: nx = 128
@@ -235,13 +235,14 @@ program test
   CALL pstickset( gamma_only, bg, gcutm, gkcut, gcutms, &
         dfftp, dffts, ngw_ , ngm_ , ngs_ , mype, root, &
         npes, comm, ntgs, iope, stdout, dfft3d )
-  write(*,*)'pstickset done'
 
   ALLOCATE( psis( dffts%tg_nnr * dffts%nogrp, 2 ) )
-  ALLOCATE( req_p(2*nbnd) )
+  ALLOCATE( req_p(nbnd) )
+  ALLOCATE( req_u(nbnd) )
   ALLOCATE( aux( dffts%tg_nnr * dffts%nogrp ) )
 
   req_p = MPI_REQUEST_NULL
+  req_u = MPI_REQUEST_NULL
 
   tempo = 0.0d0
   tempo_mio = 0.0d0
@@ -273,10 +274,9 @@ program test
   !
 #ifdef __DOUBLE_BUFFER
   ireq = 1
-  ipsi = MOD( ireq + 1, 2 ) + 1 
+  ipsi = 1 !MOD( ireq + 1, 2 ) + 1 ! 1 
   !
   CALL pack_group_sticks_i( aux, psis(:, ipsi ), dffts, req_p( ireq ) )
-  ! write(*,*)'pack group sticks i done',ireq,req_p(ireq)
   !
   nreq = 0
   DO ib = 1, nbnd, 2*dffts%nogrp 
@@ -292,17 +292,13 @@ program test
      tempo(1) = MPI_WTIME()
 
      IF( ireq <= nreq ) THEN
-        ipsi = MOD( ireq + 1, 2 ) + 1 
-     !   write(*,*)'BEFORE pack group sticks i ',ireq,req_p(ireq),' done'
+        ipsi = MOD( ireq + 1, 2 ) + 1 ! ireq = 2, ipsi = 2; ireq = 3, ipsi = 1
         CALL pack_group_sticks_i( aux, psis(:,ipsi), dffts, req_p(ireq) )
-     !   write(*,*)'AFTER pack group sticks i ',ireq,req_p(ireq),' done'
      END IF
 
-     ipsi = MOD(ipsi-1,2)+1 
+     ipsi = MOD( ireq - 2, 2 ) + 1 ! ireq = 2, ipsi = 1, ireq = 3, ipsi =  2 
 
-    ! write(*,*)'BEFORE wait pack group sticks i ',ireq-1,req_p(ireq-1),' done'
      CALL MPI_WAIT( req_p( ireq - 1 ),MPI_STATUS_IGNORE, ierr)
-    ! write(*,*)'AFTER wait pack group sticks i ',ireq-1,req_p(ireq-1),' done'
 
      tempo(2) = MPI_WTIME()
 
@@ -328,7 +324,13 @@ program test
      CALL bw_tg_cft3_z( psis( :, ipsi ), dffts, aux )
      tempo(9) = MPI_WTIME()
      !
-     CALL unpack_group_sticks( psis( :, ipsi ), aux, dffts )
+     IF(ireq == 2)THEN
+       CALL unpack_group_sticks_i( psis( :, ipsi ), aux, dffts, req_u(ireq) )
+     ELSE
+       CALL MPI_WAIT(req_u(ireq-1), MPI_STATUS_IGNORE, ierr )
+       ipsi = MOD( ireq + 1, 2 ) + 1 ! ireq = 2, ipsi = 2; ireq = 3, ipsi = 1
+       CALL unpack_group_sticks_i( psis( :, ipsi ), aux, dffts, req_u(ireq) )
+     ENDIF
      !
      tempo(10) = MPI_WTIME()
      !
@@ -339,6 +341,7 @@ program test
      ncount = ncount + 1
      !
   enddo
+  CALL MPI_WAIT(req_u(ireq), MPI_STATUS_IGNORE, ierr )
 #else
   ipsi = 1 
   ! 
