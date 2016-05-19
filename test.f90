@@ -312,7 +312,7 @@ program test
      tmp1=1.d0
      tmp2=0.d0
      !
-     do iloop = 1,10 
+     do iloop = 1,100
        CALL DAXPY(10000, pi*iloop, tmp1, 1, tmp2, 1)
      end do 
      !
@@ -324,6 +324,9 @@ program test
      CALL bw_tg_cft3_z( psis( :, ipsi ), dffts, aux )
      tempo(9) = MPI_WTIME()
      !
+#ifdef __DEBUG
+     call unpack_group_sticks( psis( :, ipsi ), aux, dffts)
+#else
      IF(ireq == 2)THEN
        CALL unpack_group_sticks_i( psis( :, ipsi ), aux, dffts, req_u(ireq) )
      ELSE
@@ -331,6 +334,7 @@ program test
        ipsi = MOD( ireq + 1, 2 ) + 1 ! ireq = 2, ipsi = 2; ireq = 3, ipsi = 1
        CALL unpack_group_sticks_i( psis( :, ipsi ), aux, dffts, req_u(ireq) )
      ENDIF
+#endif
      !
      tempo(10) = MPI_WTIME()
      !
@@ -341,7 +345,9 @@ program test
      ncount = ncount + 1
      !
   enddo
+#ifndef __DEBUG
   CALL MPI_WAIT(req_u(ireq), MPI_STATUS_IGNORE, ierr )
+#endif
 #else
   ipsi = 1 
   ! 
@@ -365,7 +371,7 @@ program test
      !
      tmp1=1.d0
      tmp2=0.d0
-     do iloop = 1,10 
+     do iloop = 1,100
        CALL DAXPY(10000, pi*iloop, tmp1, 1, tmp2, 1)
      end do 
      !
