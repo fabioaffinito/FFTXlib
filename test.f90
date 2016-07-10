@@ -13,10 +13,19 @@ program test
   USE stick_set, ONLY: pstickset
   USE fft_parallel
   USE fft_support
+#ifdef __ITAC
+  USE itac_interface
+#endif
   IMPLICIT NONE
 #ifdef __MPI
   include 'mpif.h'
   include 'fft_param.f90'
+#endif
+#ifdef __ITAC
+  include 'VT.inc'
+  include 'vtcommon.inc'
+#endif
+#ifdef __MPI
   INTEGER, ALLOCATABLE :: req_p(:),req_u(:)
 #endif
   TYPE(fft_dlay_descriptor) :: dfftp, dffts, dfft3d
@@ -120,6 +129,13 @@ program test
   iope = .true.
 
 #endif
+
+#ifdef __ITAC
+  call setup_vt_interace()
+  call VTBEGIN(vt_setup,vt_ierr)
+#endif
+
+  ! AJB: can this even work if mpi is not defined?
   !
   !  Broadcast input parameter first
   !
@@ -256,6 +272,11 @@ program test
   aux = 0.0d0
   aux(1) = 1.0d0
 
+#ifdef __ITAC
+  call VTEND(vt_setup,vt_ierr)
+  call VTBEGIN(vt_warmup,vt_ierr)
+#endif
+
   CALL MPI_BARRIER( MPI_COMM_WORLD, ierr)
   CALL pack_group_sticks( aux, psis(:,1), dffts )
   CALL fw_tg_cft3_z( psis(:,1), dffts, aux )
@@ -268,6 +289,12 @@ program test
   !
   ! Execute FFT calls once more and Take time
   !
+#ifdef __ITAC
+  call VTEND(vt_warmup,vt_ierr)
+  !improve time sync
+  call VTTIMESYNC(vt_ierr)
+  call VTBEGIN(vt_test,vt_ierr)
+#endif
   ncount = 0
   !
   wall = MPI_WTIME() 
@@ -276,7 +303,15 @@ program test
   ireq = 1
   ipsi = 1 !MOD( ireq + 1, 2 ) + 1 ! 1 
   !
+# ifdef __ITAC
+  call VTBEGIN(vt_pack_sticks_i,vt_ierr)
+# endif
+
   CALL pack_group_sticks_i( aux, psis(:, ipsi ), dffts, req_p( ireq ) )
+
+# ifdef __ITAC
+  call VTEND(vt_pack_sticks_i,vt_ierr)
+# endif
   !
   nreq = 0
   DO ib = 1, nbnd, 2*dffts%nogrp 
@@ -292,8 +327,17 @@ program test
      tempo(1) = MPI_WTIME()
 
      IF( ireq <= nreq ) THEN
+# ifdef __ITAC
+  call VTBEGIN(vt_pack_sticks_i,vt_ierr)
+# endif
+
         ipsi = MOD( ireq + 1, 2 ) + 1 ! ireq = 2, ipsi = 2; ireq = 3, ipsi = 1
+
         CALL pack_group_sticks_i( aux, psis(:,ipsi), dffts, req_p(ireq) )
+
+# ifdef __ITAC
+  call VTEND(vt_pack_sticks_i,vt_ierr)
+# endif
      END IF
 
      ipsi = MOD( ireq - 2, 2 ) + 1 ! ireq = 2, ipsi = 1, ireq = 3, ipsi =  2 
@@ -302,12 +346,27 @@ program test
 
      tempo(2) = MPI_WTIME()
 
+# ifdef __ITAC
+  call VTBEGIN(vt_fw_tg_cft3_z,vt_ierr)
+# endif
      CALL fw_tg_cft3_z( psis( :, ipsi ), dffts, aux )
      tempo(3) = MPI_WTIME()
+# ifdef __ITAC
+  call VTEND(vt_fw_tg_cft3_z,vt_ierr)
+  call VTBEGIN(vt_fw_tg_cft3_scatter,vt_ierr)
+# endif
      CALL fw_tg_cft3_scatter( psis( :, ipsi ), dffts, aux )
      tempo(4) = MPI_WTIME()
+# ifdef __ITAC
+  call VTEND(vt_fw_tg_cft3_scatter,vt_ierr)
+  call VTBEGIN(vt_fw_tg_cft3_xy,vt_ierr)
+# endif
      CALL fw_tg_cft3_xy( psis( :, ipsi ), dffts )
      tempo(5) = MPI_WTIME()
+# ifdef __ITAC
+  call VTEND(vt_fw_tg_cft3_xy,vt_ierr)
+  call VTBEGIN(vt_daxpy,vt_ierr)
+# endif
      !
      tmp1=1.d0
      tmp2=0.d0
@@ -317,22 +376,49 @@ program test
      end do 
      !
      tempo(6) = MPI_WTIME()
+# ifdef __ITAC
+  call VTEND(vt_daxpy,vt_ierr)
+  call VTBEGIN(vt_bw_tg_cft3_xy,vt_ierr)
+# endif
      CALL bw_tg_cft3_xy( psis( :, ipsi ), dffts )
      tempo(7) = MPI_WTIME()
+# ifdef __ITAC
+  call VTEND(vt_bw_tg_cft3_xy,vt_ierr)
+  call VTBEGIN(vt_bw_tg_cft3_scatter,vt_ierr)
+# endif
      CALL bw_tg_cft3_scatter( psis( :, ipsi ), dffts, aux )
      tempo(8) = MPI_WTIME()
+# ifdef __ITAC
+  call VTEND(vt_bw_tg_cft3_scatter,vt_ierr)
+  call VTBEGIN(vt_bw_tg_cft3_z,vt_ierr)
+# endif
      CALL bw_tg_cft3_z( psis( :, ipsi ), dffts, aux )
      tempo(9) = MPI_WTIME()
+# ifdef __ITAC
+  call VTEND(vt_bw_tg_cft3_z,vt_ierr)
+# endif
      !
-#ifdef __DEBUG
+# ifdef __DEBUG
      call unpack_group_sticks( psis( :, ipsi ), aux, dffts)
-#else
+# else
      IF(ireq == 2)THEN
+# ifdef __ITAC
+  call VTBEGIN(vt_unpack_sticks_i,vt_ierr)
+# endif
        CALL unpack_group_sticks_i( psis( :, ipsi ), aux, dffts, req_u(ireq) )
+# ifdef __ITAC
+  call VTEND(vt_unpack_sticks_i,vt_ierr)
+# endif
      ELSE
        CALL MPI_WAIT(req_u(ireq-1), MPI_STATUS_IGNORE, ierr )
        ipsi = MOD( ireq + 1, 2 ) + 1 ! ireq = 2, ipsi = 2; ireq = 3, ipsi = 1
+# ifdef __ITAC
+  call VTBEGIN(vt_unpack_sticks_i,vt_ierr)
+# endif
        CALL unpack_group_sticks_i( psis( :, ipsi ), aux, dffts, req_u(ireq) )
+# ifdef __ITAC
+  call VTEND(vt_unpack_sticks_i,vt_ierr)
+# endif
      ENDIF
 #endif
      !
@@ -348,6 +434,7 @@ program test
 #ifndef __DEBUG
   CALL MPI_WAIT(req_u(ireq), MPI_STATUS_IGNORE, ierr )
 #endif
+
 #else
   ipsi = 1 
   ! 
@@ -358,32 +445,72 @@ program test
 
      tempo(1) = MPI_WTIME()
 
+# ifdef __ITAC
+  call VTBEGIN(vt_pack_sticks,vt_ierr)
+# endif
      CALL pack_group_sticks( aux, psis(:,ipsi), dffts )
 
      tempo(2) = MPI_WTIME()
+# ifdef __ITAC
+  call VTEND(vt_pack_sticks,vt_ierr)
+  call VTBEGIN(vt_fw_tg_cft3_z,vt_ierr)
+# endif
 
      CALL fw_tg_cft3_z( psis( :, ipsi ), dffts, aux )
      tempo(3) = MPI_WTIME()
+# ifdef __ITAC
+  call VTEND(vt_fw_tg_cft3_z,vt_ierr)
+  call VTBEGIN(vt_fw_tg_cft3_scatter,vt_ierr)
+# endif
      CALL fw_tg_cft3_scatter( psis( :, ipsi ), dffts, aux )
      tempo(4) = MPI_WTIME()
+# ifdef __ITAC
+  call VTEND(vt_fw_tg_cft3_scatter,vt_ierr)
+  call VTBEGIN(vt_fw_tg_cft3_xy,vt_ierr)
+# endif
      CALL fw_tg_cft3_xy( psis( :, ipsi ), dffts )
      tempo(5) = MPI_WTIME()
+# ifdef __ITAC
+  call VTEND(vt_fw_tg_cft3_xy,vt_ierr)
+  call VTBEGIN(vt_daxpy,vt_ierr)
+# endif
      !
      tmp1=1.d0
      tmp2=0.d0
      do iloop = 1,100
        CALL DAXPY(10000, pi*iloop, tmp1, 1, tmp2, 1)
      end do 
+# ifdef __ITAC
+  call VTEND(vt_daxpy,vt_ierr)
+  call VTBEGIN(vt_bw_tg_cft3_xy,vt_ierr)
+# endif
      !
      tempo(6) = MPI_WTIME()
      CALL bw_tg_cft3_xy( psis( :, ipsi ), dffts )
+# ifdef __ITAC
+  call VTEND(vt_bw_tg_cft3_xy,vt_ierr)
+  call VTBEGIN(vt_bw_tg_cft3_scatter,vt_ierr)
+# endif
      tempo(7) = MPI_WTIME()
      CALL bw_tg_cft3_scatter( psis( :, ipsi ), dffts, aux )
+# ifdef __ITAC
+  call VTEND(vt_bw_tg_cft3_scatter,vt_ierr)
+  call VTBEGIN(vt_bw_tg_cft3_z,vt_ierr)
+# endif
      tempo(8) = MPI_WTIME()
      CALL bw_tg_cft3_z( psis( :, ipsi ), dffts, aux )
+# ifdef __ITAC
+  call VTEND(vt_bw_tg_cft3_z,vt_ierr)
+# endif
      tempo(9) = MPI_WTIME()
 
+# ifdef __ITAC
+  call VTBEGIN(vt_unpack_sticks,vt_ierr)
+# endif
      CALL unpack_group_sticks( psis( :, ipsi ), aux, dffts )
+# ifdef __ITAC
+  call VTEND(vt_unpack_sticks,vt_ierr)
+# endif
 
      tempo(10) = MPI_WTIME()
 
@@ -397,6 +524,10 @@ program test
 #endif
 
   wall = MPI_WTIME() - wall
+#ifdef __ITAC
+  call VTEND(vt_test,vt_ierr)
+  call VTBEGIN(vt_post,vt_ierr)
+#endif
 
   DEALLOCATE( psis, aux )
 
@@ -466,6 +597,9 @@ program test
   end if
 
   
+#ifdef __ITAC
+  call VTEND(vt_post,vt_ierr)
+#endif
 #ifdef __MPI
   CALL mpi_finalize(ierr)
 #endif
@@ -559,9 +693,15 @@ end program test
 subroutine start_clock( label )
 implicit none
 character(len=*) :: label
+
+!why are these empty? AJB
+
 end subroutine
 
 subroutine stop_clock( label )
 implicit none
 character(len=*) :: label
+
+!why are these empty? AJB
+
 end subroutine
