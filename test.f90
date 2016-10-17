@@ -323,7 +323,7 @@ program test
 
      ipsi = MOD(ipsi-1,2)+1 
 
-     CALL MPI_WAIT( req_p( ireq - 1 ),MPI_STATUS_IGNORE)
+     CALL MPI_WAIT( req_p( ireq - 1 ),MPI_STATUS_IGNORE,ierr)
 
      time(2) = MPI_WTIME()
 
@@ -395,7 +395,14 @@ program test
      CALL bw_tg_cft3_z( psis( :, ipsi ), dffts, aux, dtgs )
      time(9) = MPI_WTIME()
 
-     CALL unpack_group_sticks( psis( :, ipsi ), aux, dtgs )
+!     CALL unpack_group_sticks( psis( :, ipsi ), aux, dtgs )
+     IF(ireq == 2)THEN
+       CALL unpack_group_sticks_i( psis( :, ipsi ), aux, dffts, req_u(ireq) )
+     ELSE
+       CALL MPI_WAIT(req_u(ireq-1), MPI_STATUS_IGNORE, ierr )
+       ipsi = MOD( ireq + 1, 2 ) + 1 ! ireq = 2, ipsi = 2; ireq = 3, ipsi = 1
+       CALL unpack_group_sticks_i( psis( :, ipsi ), aux, dffts, req_u(ireq) )
+     ENDIF
 
      time(10) = MPI_WTIME()
 
