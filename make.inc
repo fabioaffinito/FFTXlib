@@ -55,8 +55,8 @@ CPPFLAGS       = -P -C -traditional $(DFLAGS) $(IFLAGS)
 # F90 flags must include MODFLAGS, IFLAGS, and FDFLAGS with appropriate syntax
 
 CFLAGS         = -O3 -g $(DFLAGS) $(IFLAGS)
-F90FLAGS       = $(FFLAGS) -nomodule -openmp -fpp $(FDFLAGS) $(IFLAGS) $(MODFLAGS)
-FFLAGS         = -O2 -openmp
+F90FLAGS       = $(FFLAGS) -nomodule -qopenmp -fpp $(FDFLAGS) $(IFLAGS) $(MODFLAGS) -mkl
+FFLAGS         = -O2 -qopenmp
 
 # compiler flags without optimization for fortran-77
 # the latter is NEEDED to properly compile dlamch.f, used by lapack
@@ -72,7 +72,7 @@ FFLAGS_NOMAIN   = -nofor_main
 # Typically LD coincides with F90 or MPIF90, LD_LIBS is empty
 
 LD             =  mpiifort
-LDFLAGS        = -openmp
+LDFLAGS        = -qopenmp -mkl
 LD_LIBS        = 
 
 # External Libraries (if any) : blas, lapack, fft, MPI
