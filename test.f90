@@ -259,6 +259,9 @@ program test
   ALLOCATE( req_u(nbnd) )
   ALLOCATE( aux( dtgs%tg_nnr * dtgs%nogrp ) )
 
+  req_p = MPI_REQUEST_NULL
+  req_u = MPI_REQUEST_NULL
+
   time = 0.0d0
   my_time = 0.0d0
   time_min = 0.0d0
@@ -298,7 +301,7 @@ program test
   !
 #if defined(__DOUBLE_BUFFER)
   ireq = 1
-  ipsi = MOD( ireq + 1, 2 ) + 1 
+  ipsi = 1 
   !
   CALL pack_group_sticks_i( aux, psis(:, ipsi ), dtgs, req_p( ireq ) )
   !
@@ -321,7 +324,7 @@ program test
         CALL pack_group_sticks_i( aux, psis(:,ipsi), dtgs, req_p(ireq) )
      END IF
 
-     ipsi = MOD(ipsi-1,2)+1 
+     ipsi = MOD( ireq - 2, 2 ) + 1
 
      CALL MPI_WAIT( req_p( ireq - 1 ),MPI_STATUS_IGNORE,ierr)
 
@@ -348,9 +351,13 @@ program test
      time(8) = MPI_WTIME()
      CALL bw_tg_cft3_z( psis( :, ipsi ), dffts, aux, dtgs )
      time(9) = MPI_WTIME()
-     !
-     CALL unpack_group_sticks( psis( :, ipsi ), aux, dtgs )
-     !
+     IF(ireq == 2)THEN
+       CALL unpack_group_sticks_i( psis( :, ipsi ), aux, dtgs , req_u(ireq) )
+     ELSE
+       CALL MPI_WAIT(req_u(ireq-1), MPI_STATUS_IGNORE, ierr )
+       ipsi = MOD( ireq + 1, 2 ) + 1 ! ireq = 2, ipsi = 2; ireq = 3, ipsi = 1
+       CALL unpack_group_sticks_i( psis( :, ipsi ), aux, dtgs, req_u(ireq) )
+     ENDIF
      time(10) = MPI_WTIME()
      !
      do i = 2, 10
@@ -360,6 +367,7 @@ program test
      ncount = ncount + 1
      !
   enddo
+  CALL MPI_WAIT(req_u(ireq),MPI_STATUS_IGNORE,ierr)
 #else
   ipsi = 1 
   ! 
@@ -395,14 +403,7 @@ program test
      CALL bw_tg_cft3_z( psis( :, ipsi ), dffts, aux, dtgs )
      time(9) = MPI_WTIME()
 
-!     CALL unpack_group_sticks( psis( :, ipsi ), aux, dtgs )
-     IF(ireq == 2)THEN
-       CALL unpack_group_sticks_i( psis( :, ipsi ), aux, dffts, req_u(ireq) )
-     ELSE
-       CALL MPI_WAIT(req_u(ireq-1), MPI_STATUS_IGNORE, ierr )
-       ipsi = MOD( ireq + 1, 2 ) + 1 ! ireq = 2, ipsi = 2; ireq = 3, ipsi = 1
-       CALL unpack_group_sticks_i( psis( :, ipsi ), aux, dffts, req_u(ireq) )
-     ENDIF
+     CALL unpack_group_sticks( psis( :, ipsi ), aux, dtgs )
 
      time(10) = MPI_WTIME()
 
