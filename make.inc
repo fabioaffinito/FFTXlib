@@ -20,7 +20,7 @@
 #                  You may use this instead of tweaking DFLAGS and FDFLAGS
 #                  BEWARE: will not work for IBM xlf! Manually edit FDFLAGS
 #MANUAL_DFLAGS  = -D__NON_BLOCKING_SCATTER -D__DOUBLE_BUFFER 
-DFLAGS         =  -D__INTEL -D__FFTW -D__MPI -D__PARA -D__SCALAPACK -D__OPENMP $(MANUAL_DFLAGS)
+DFLAGS         =  -D__INTEL -D__FFTW -D__MPI -D__PARA -D__SCALAPACK $(MANUAL_DFLAGS)
 FDFLAGS        = $(DFLAGS) $(MANUAL_DFLAGS)
 
 # IFLAGS = how to locate directories where files to be included are
@@ -112,7 +112,7 @@ RANLIB         = ranlib
 
 FLIB_TARGETS   = all
 
-LIBOBJS        = ../flib/ptools.a ../flib/flib.a ../clib/clib.a ../iotk/src/libiotk.a 
+LIBOBJS        = 
 LIBS           = $(SCALAPACK_LIBS) $(LAPACK_LIBS) $(FFT_LIBS) $(BLAS_LIBS) $(MPI_LIBS) $(MASS_LIBS) $(LD_LIBS)
 
 # wget or curl - useful to download from network
