@@ -531,6 +531,7 @@ END SUBROUTINE bw_tg_cft3_xy
      RETURN
   END SUBROUTINE unpack_group_sticks
 
+
   SUBROUTINE unpack_group_sticks_i( yf, f, dtgs, req )
 
      USE task_groups,  ONLY : task_groups_descriptor
@@ -546,7 +547,7 @@ END SUBROUTINE bw_tg_cft3_xy
      !
      !  Bring pencils back to their original distribution
      !
-     INTEGER                     :: ierr,req
+     INTEGER                     :: ierr, req
      !
      IF( dtgs%tg_usdsp(dtgs%nogrp) + dtgs%tg_snd(dtgs%nogrp) > size( f ) ) THEN
         CALL fftx_error__( 'unpack_group_sticks', ' inconsistent size ', 3 )
@@ -570,7 +571,6 @@ END SUBROUTINE bw_tg_cft3_xy
 
      RETURN
   END SUBROUTINE unpack_group_sticks_i
-
 
 SUBROUTINE tg_gather( dffts, dtgs, v, tg_v )
    !
